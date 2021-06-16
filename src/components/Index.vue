@@ -1,56 +1,122 @@
 <template>
-  <div id="Index" class="container">
-    <div class="cards" v-bind:key="crd.text" v-for="crd in card" :style="crd.style">
-      <div v-if="crd.add" @click="adderOfCard(crd)">
-        <h2>{{ crd.text }}</h2>
-      </div>
-      <div v-else>
-        <button @click="changeSetting(crd)">{{crd.setting}}</button>
-        <div v-if="crd.setting">
-            <input type="text" name="resize" :placeholder="getArea(crd)" />
-            <input type="text" name="title" :placeholder="crd.title" />
-            <input type="text" name="target" :placeholder="crd.target" />
-            <button @click="changeSize($event,crd)">resize</button>
+  <fast-design-system-provider
+    use-defaults
+    background-color="#F7F7F7"
+    class="card-center"
+  >
+    <div id="Index" class="container">
+      <fast-card
+        class="cards"
+        v-bind:key="crd.text"
+        v-for="crd in card"
+        :style="crd.style"
+      >
+        <div
+          v-if="crd.add"
+          @click="adderOfCard(crd)"
+          style="height: -webkit-fill-available"
+        >
+          <div class="card-center">
+            <i class="pi pi-plus" />
+          </div>
         </div>
-        <h2 style="display:flex">{{crd.text}}</h2>
-        <div v-for="pair in crd.data" v-bind:key="pair.title" align="left">
-            <a :href="pair['link']">{{pair["title"]}}</a>
+        <div v-else>
+          <div class="bar-stretch">
+            <h2 style="display: inline">{{ crd.text }}</h2>
+            <i class="pi pi-cog" @click="changeSetting(crd)"></i>
+          </div>
+          <div v-if="crd.setting">
+            <div class="card-center" style="margin: 3px">
+              <fast-text-field
+                type="text"
+                name="resize"
+                label="resize"
+                :placeholder="getArea(crd)"
+                style="margin-right: 10px"
+              />
+              <i class="pi pi-check" @click="changeSize($event, crd)" />
+            </div>
+            <div class="card-center" style="margin: 3px">
+              <fast-text-field
+                type="text"
+                name="title"
+                :placeholder="crd.text"
+                style="margin-right: 10px"
+              />
+              <i class="pi pi-check" @click="rename($event, crd)" />
+            </div>
+            <div class="card-center" style="margin: 3px">
+              <fast-text-field
+                type="text"
+                name="target"
+                :placeholder="crd.target"
+                style="margin-right: 10px"
+              />
+              <i class="pi pi-check" @click="changeRss($event, crd)" />
+            </div>
+          </div>
+          <div v-else>
+            <div v-for="pair in crd.data" v-bind:key="pair.title" align="left">
+              <a :href="pair['link']">{{ pair["title"] }}</a>
+            </div>
+          </div>
         </div>
-      </div>
+      </fast-card>
     </div>
-  </div>
+  </fast-design-system-provider>
 </template>
 
 <script>
 import { defineComponent } from "vue";
-import axios from 'axios';
+import axios from "axios";
+
 export default defineComponent({
   name: "Index",
   props: {},
   components: {},
   methods: {
     expandGrid(max) {
-        this.rows = max + 2;
+      this.rows = max + 2;
     },
-    changeSetting(card){
-        card.setting = !card.setting;
+    rename(event, crd) {
+      let inputStr = event.target.parentNode.children[0].value;
+      crd.text = inputStr;
     },
-    getRss(crd){
-        axios.get('/users',{
-            params:{
-                target: crd.target
-            }
-        }).then((res) => {
+    changeRss(event, crd) {
+      let inputStr = event.target.parentNode.children[0].value;
+      crd.target = inputStr;
+      this.getRss(crd);
+    },
+    changeSetting(card) {
+      card.setting = !card.setting;
+    },
+    getRss(crd) {
+      axios
+        .get("/users", {
+          params: {
+            target: crd.target,
+          },
+        })
+        .then((res) => {
           crd.data = res["data"];
         });
     },
-    getArea(card){
-        return card.style.match(/\d+/g);
+    getArea(card) {
+      return card.style.match(/\d+/g);
     },
-    changeSize(event,card) {
-      let inputStr = event.target.parentNode.getElementsByTagName("input")[0].value;
+    changeSize(event, card) {
+      let inputStr = event.target.parentNode.children[0].value;
       let gridArea = inputStr.split(" ").map((x) => parseInt(x));
-      card["style"] = "grid-column : "+ gridArea[0]  +" / "+ gridArea[1] +"; grid-row : "+ gridArea[2] +" / "+ gridArea[3] +" ";
+      card["style"] =
+        "grid-column : " +
+        gridArea[0] +
+        " / " +
+        gridArea[1] +
+        "; grid-row : " +
+        gridArea[2] +
+        " / " +
+        gridArea[3] +
+        " ";
       this.expandGrid(gridArea[3]);
     },
     newAdder() {
@@ -100,8 +166,15 @@ export default defineComponent({
         ";grid-row:" +
         rowStart +
         "/" +
-        rowEnd ;
-      this.card.push({ text: innerText, style: cssText, add: type, data:[],target: "", setting: false });
+        rowEnd;
+      this.card.push({
+        text: innerText,
+        style: cssText,
+        add: type,
+        data: [],
+        target: "",
+        setting: false,
+      });
     },
     adderOfCard(crd) {
       crd["add"] = false;
@@ -112,20 +185,42 @@ export default defineComponent({
   data() {
     return {
       card: [
-        { text: "掘金", style: "grid-column : 1 / 2; grid-row : 1 / 3 ", add: false, data: [], target:"/juejin/category/frontend", setting: true},
-        { text: "Windows Blog", style: "grid-column : 2 / 4; grid-row : 1 / 4 ", add: false, data: [], target:"https://blogs.windows.com/windows-insider/feed/", setting: false},
-        { text: "触乐", style: "grid-column : 4 / 5; grid-row : 1 / 4 ", add: false, data: [], target:"/chuapp/index/daily", setting: false},
+        {
+          text: "掘金",
+          style: "grid-column : 1 / 2; grid-row : 1 / 2 ",
+          add: false,
+          data: [],
+          target: "/juejin/category/frontend",
+          setting: false,
+        },
+        {
+          text: "Windows Blog",
+          style: "grid-column : 2 / 4; grid-row : 1 / 2 ",
+          add: false,
+          data: [],
+          target: "https://blogs.windows.com/windows-insider/feed/",
+          setting: false,
+        },
+        {
+          text: "触乐",
+          style: "grid-column : 4 / 5; grid-row : 1 / 2 ",
+          add: false,
+          data: [],
+          target: "/chuapp/index/daily",
+          setting: false,
+        },
       ],
       cols: 4,
       rows: 5,
+      dialogVisible: false,
     };
   },
   mounted() {
     this.newAdder();
-    this.card.forEach(x => {
-        if(x.add === false){
-            this.getRss(x);
-        }
+    this.card.forEach((x) => {
+      if (x.add === false) {
+        this.getRss(x);
+      }
     });
   },
   setup() {
@@ -134,30 +229,39 @@ export default defineComponent({
 });
 </script>
 
-<style scoped >
+<style scoped>
 .container {
   display: grid;
-  grid-template-columns: repeat(v-bind(cols), 24vw);
-  grid-template-rows: repeat(v-bind(rows), 100px);
+  grid-template-columns: repeat(v-bind(cols), 23vw);
+  grid-template-rows: repeat(v-bind(rows), 260px);
+  grid-auto-columns: minmax(23vw, 23vw);
+  grid-auto-rows: minmax(260px, 320px);
   grid-gap: 1vw;
-  margin: 0;
-  /*grid-auto-rows: minmax(100px,100px);
-  grid-auto-columns: minmax(24vw,24vw);*/
 }
+
 .cards {
-  display: flex;
-  background: #ffffff;
   padding: 28px;
-  box-shadow: 0 1.6px 3.6px 0 rgb(0 0 0 / 13%),0 0.3px 0.9px 0 rgb(0 0 0 / 11%);
+  overflow: auto;
+}
+.bar-stretch {
+  display: flex;
+  justify-content: space-between;
+}
+.card-center {
+  height: -webkit-fill-available;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 a:link {
-    text-decoration: none;
-    /*color: rgb(0,120,212);*/
-    color: black;
+  text-decoration: none;
+  color: black;
 }
 a:visited {
-    text-decoration: none;
-    /*color: rgb(0,120,212);*/
-    color: grey;
+  text-decoration: none;
+  color: grey;
+}
+.pi {
+  filter: contrast(1.4);
 }
 </style>
