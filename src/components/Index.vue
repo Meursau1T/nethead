@@ -31,7 +31,8 @@
                 type="text"
                 name="resize"
                 label="resize"
-                :placeholder="getArea(crd)"
+                ref="inputSize"
+                :placeholder="'Grid位置: '+getArea(crd)"
                 style="margin-right: 10px"
               />
               <i class="pi pi-check" @click="changeSize($event, crd)" />
@@ -40,23 +41,28 @@
               <fast-text-field
                 type="text"
                 name="title"
-                :placeholder="crd.text"
+                :placeholder="'标题: '+crd.text"
+                ref="inputTitle"
                 style="margin-right: 10px"
               />
-              <i class="pi pi-check" @click="rename($event, crd)" />
+              <i class="pi pi-check" @click="rename($event,crd)" />
             </div>
             <div class="card-center" style="margin: 3px">
               <fast-text-field
                 type="text"
                 name="target"
-                :placeholder="crd.target"
+                :placeholder="'Rss: ' + crd.target"
+                ref="inputTarget"
                 style="margin-right: 10px"
               />
               <i class="pi pi-check" @click="changeRss($event, crd)" />
             </div>
           </div>
           <div v-else>
-            <div v-for="pair in crd.data" v-bind:key="pair.title" align="left">
+            <div  class="card-center" v-if="crd.data.length === 0 && crd.target.length != 0">
+              <fast-progress-ring/>
+            </div>
+            <div v-for="pair in crd.data" v-bind:key="pair.title" align="left" style="margin: 10px 0 10px 0;">
               <a :href="pair['link']">{{ pair["title"] }}</a>
             </div>
           </div>
@@ -79,11 +85,11 @@ export default defineComponent({
       this.rows = max + 2;
     },
     rename(event, crd) {
-      let inputStr = event.target.parentNode.children[0].value;
+      let inputStr = this.$refs.inputTitle.value;
       crd.text = inputStr;
     },
     changeRss(event, crd) {
-      let inputStr = event.target.parentNode.children[0].value;
+      let inputStr = this.$refs.inputTarget.value;
       crd.target = inputStr;
       this.getRss(crd);
     },
@@ -92,7 +98,7 @@ export default defineComponent({
     },
     getRss(crd) {
       axios
-        .get("/users", {
+        .get("/rss", {
           params: {
             target: crd.target,
           },
@@ -105,7 +111,8 @@ export default defineComponent({
       return card.style.match(/\d+/g);
     },
     changeSize(event, card) {
-      let inputStr = event.target.parentNode.children[0].value;
+      let inputStr = this.$refs.inputSize.value;
+      console.log(inputStr);
       let gridArea = inputStr.split(" ").map((x) => parseInt(x));
       card["style"] =
         "grid-column : " +
@@ -118,27 +125,23 @@ export default defineComponent({
         gridArea[3] +
         " ";
       this.expandGrid(gridArea[3]);
+      /*
+        刷新新建卡片，防止调整尺寸后覆盖
+      */
+      this.card.pop();
+      this.newAdder();
     },
     newAdder() {
-      let cards = Array.from(document.getElementsByClassName("cards"));
-      let pos = cards.map((x) => {
-        let res = [];
-        res.push(parseInt(x.style["grid-column-start"]) - 1);
-        res.push(parseInt(x.style["grid-column-end"]) - 1);
-        res.push(parseInt(x.style["grid-row-start"]) - 1);
-        res.push(parseInt(x.style["grid-row-end"]) - 1);
-        return res;
+      let pos = this.card.map((x) => {
+        return x["style"].match(/\d/g).map(x => parseInt(x)-1);
       });
-      let nCol = getComputedStyle(document.getElementsByClassName("container")[0])[
-        "gridTemplateColumns"
-      ].split(" ").length;
-      let records = new Array(nCol).fill(0);
+      let records = new Array(this.cols).fill(0);
       pos.forEach((pos) => {
         let cst = pos[0];
         let clen = pos[1] - pos[0];
         let rlen = pos[3];
         for (let i = 0; i < clen; i++) {
-          records[i + cst] = Math.max(rlen, records[i + cst]);
+          records[i + cst] = Math.max(rlen, records[i + cst]);  
         }
       });
       let min = records[0];
@@ -178,7 +181,7 @@ export default defineComponent({
     },
     adderOfCard(crd) {
       crd["add"] = false;
-      crd["text"] = 0;
+      crd["text"] = "New Card";
       this.newAdder();
     },
   },
@@ -235,7 +238,7 @@ export default defineComponent({
   grid-template-columns: repeat(v-bind(cols), 23vw);
   grid-template-rows: repeat(v-bind(rows), 260px);
   grid-auto-columns: minmax(23vw, 23vw);
-  grid-auto-rows: minmax(260px, 320px);
+  grid-auto-rows: minmax(300px, 320px);
   grid-gap: 1vw;
 }
 

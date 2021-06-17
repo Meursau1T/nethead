@@ -7,6 +7,7 @@ import {
   FASTCard,
   FASTButton,
   FASTTextField,
+  FASTProgressRing,
 } from '@microsoft/fast-components';
         
 createApp(App)
@@ -15,4 +16,5 @@ createApp(App)
     .component('FASTCard',FASTCard)
     .component('FASTButton',FASTButton)
     .component('FASTTextField',FASTTextField)
+    .component('FASTProgressRing',FASTProgressRing)
     .mount('#app')

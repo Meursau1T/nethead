@@ -19,3 +19,6 @@
     利用CSS的filter，可以调整对比度、亮度等
 15. div越界后出现滚动条
     css中设置overflow为auto
+16. 按钮获取表单内容
+    给表单设置ref，然后可以在JS里面通过this.$refs.RefName获取表单的值
+    还可以通过v-model绑定值
