@@ -7,7 +7,7 @@
     <div id="Index" class="container">
       <fast-card
         class="cards"
-        v-bind:key="crd.text"
+        v-bind:key="crd.title"
         v-for="crd in card"
         :style="crd.style"
       >
@@ -22,7 +22,7 @@
         </div>
         <div v-else>
           <div class="bar-stretch">
-            <h2 style="display: inline">{{ crd.text }}</h2>
+            <h2 style="display: inline">{{ crd.title }}</h2>
             <i class="pi pi-cog" @click="changeSetting(crd)"></i>
           </div>
           <div v-if="crd.setting">
@@ -32,20 +32,20 @@
                 name="resize"
                 label="resize"
                 ref="inputSize"
-                :placeholder="'Grid位置: '+getArea(crd)"
+                :placeholder="'Grid位置: ' + getArea(crd)"
                 style="margin-right: 10px"
               />
-              <i class="pi pi-check" @click="changeSize($event, crd)" />
+              <fast-button @click="changeSize($event, crd)">提交</fast-button>
             </div>
             <div class="card-center" style="margin: 3px">
               <fast-text-field
                 type="text"
                 name="title"
-                :placeholder="'标题: '+crd.text"
+                :placeholder="'标题: ' + crd.title"
                 ref="inputTitle"
                 style="margin-right: 10px"
               />
-              <i class="pi pi-check" @click="rename($event,crd)" />
+              <fast-button @click="rename($event, crd)">提交</fast-button>
             </div>
             <div class="card-center" style="margin: 3px">
               <fast-text-field
@@ -55,14 +55,30 @@
                 ref="inputTarget"
                 style="margin-right: 10px"
               />
-              <i class="pi pi-check" @click="changeRss($event, crd)" />
+              <fast-button @click="changeRss($event, crd)">提交</fast-button>
+            </div>
+            <div class="card-center">
+              <fast-button
+                appearance="accent"
+                style="width: 100px"
+                @click="deleteCard(crd)"
+                >删除</fast-button
+              >
             </div>
           </div>
           <div v-else>
-            <div  class="card-center" v-if="crd.data.length === 0 && crd.target.length != 0">
-              <fast-progress-ring/>
+            <div
+              class="card-center"
+              v-if="crd.data.length === 0 && crd.target.length != 0"
+            >
+              <fast-progress-ring />
             </div>
-            <div v-for="pair in crd.data" v-bind:key="pair.title" align="left" style="margin: 10px 0 10px 0;">
+            <div
+              v-for="pair in crd.data"
+              v-bind:key="pair.title"
+              align="left"
+              style="margin: 10px 0 10px 0"
+            >
               <a :href="pair['link']">{{ pair["title"] }}</a>
             </div>
           </div>
@@ -84,13 +100,31 @@ export default defineComponent({
     expandGrid(max) {
       this.rows = max + 2;
     },
+    validName(str) {
+      let isValid = true;
+      this.card.forEach((card) => {
+        if (card.title === str) {
+          isValid = false;
+        }
+      });
+      if (isValid) {
+        return str;
+      } else {
+        return str + " copy";
+      }
+    },
     rename(event, crd) {
       let inputStr = this.$refs.inputTitle.value;
-      crd.text = inputStr;
+      inputStr = this.validName(inputStr);
+      let oldName = crd.title;
+      crd.title = inputStr + "__old__" + oldName;
+      this.updateSettings(crd);
+      crd.title = inputStr;
     },
     changeRss(event, crd) {
       let inputStr = this.$refs.inputTarget.value;
       crd.target = inputStr;
+      this.updateSettings(crd);
       this.getRss(crd);
     },
     changeSetting(card) {
@@ -105,14 +139,56 @@ export default defineComponent({
         })
         .then((res) => {
           crd.data = res["data"];
+        })
+        .catch((err) => {
+          throw err;
         });
+    },
+    deleteCard(crd) {
+      axios
+        .get("/rss/delete", {
+          params: {
+            title: crd.title,
+          },
+        })
+        .then(() => {
+          this.card = this.card.filter((card) => card.title != crd.title);
+        })
+        .catch((err) => {
+          throw err;
+        });
+    },
+    getSettings() {
+      axios
+        .get("/rss/getall")
+        .then((res) => {
+          this.card = res.data;
+          return res.data;
+        })
+        .catch((err) => console.log(err))
+        .then(() => {
+          this.card.forEach((x) => {
+            if (x.target !== "" && x.add === false) {
+              this.getRss(x);
+            }
+          });
+          this.newAdder();
+        });
+    },
+    updateSettings(card) {
+      axios.get("/rss/update", {
+        params: {
+          title: card.title,
+          style: card.style,
+          target: card.target,
+        },
+      });
     },
     getArea(card) {
       return card.style.match(/\d+/g);
     },
     changeSize(event, card) {
       let inputStr = this.$refs.inputSize.value;
-      console.log(inputStr);
       let gridArea = inputStr.split(" ").map((x) => parseInt(x));
       card["style"] =
         "grid-column : " +
@@ -125,6 +201,7 @@ export default defineComponent({
         gridArea[3] +
         " ";
       this.expandGrid(gridArea[3]);
+      this.updateSettings(card);
       /*
         刷新新建卡片，防止调整尺寸后覆盖
       */
@@ -133,7 +210,7 @@ export default defineComponent({
     },
     newAdder() {
       let pos = this.card.map((x) => {
-        return x["style"].match(/\d/g).map(x => parseInt(x)-1);
+        return x["style"].match(/\d+/g).map((x) => parseInt(x) - 1);
       });
       let records = new Array(this.cols).fill(0);
       pos.forEach((pos) => {
@@ -141,7 +218,7 @@ export default defineComponent({
         let clen = pos[1] - pos[0];
         let rlen = pos[3];
         for (let i = 0; i < clen; i++) {
-          records[i + cst] = Math.max(rlen, records[i + cst]);  
+          records[i + cst] = Math.max(rlen, records[i + cst]);
         }
       });
       let min = records[0];
@@ -171,7 +248,7 @@ export default defineComponent({
         "/" +
         rowEnd;
       this.card.push({
-        text: innerText,
+        title: innerText,
         style: cssText,
         add: type,
         data: [],
@@ -181,51 +258,32 @@ export default defineComponent({
     },
     adderOfCard(crd) {
       crd["add"] = false;
-      crd["text"] = "New Card";
+      crd["title"] = this.validName("New Card");
+      axios
+        .get("/rss/add", {
+          params: {
+            title: crd["title"],
+            style: crd["style"].match(/\d+/g).toString(),
+            target: crd["target"],
+          },
+        })
+        .catch((err) => {
+          throw err;
+        });
       this.newAdder();
     },
   },
   data() {
     return {
-      card: [
-        {
-          text: "掘金",
-          style: "grid-column : 1 / 2; grid-row : 1 / 2 ",
-          add: false,
-          data: [],
-          target: "/juejin/category/frontend",
-          setting: false,
-        },
-        {
-          text: "Windows Blog",
-          style: "grid-column : 2 / 4; grid-row : 1 / 2 ",
-          add: false,
-          data: [],
-          target: "https://blogs.windows.com/windows-insider/feed/",
-          setting: false,
-        },
-        {
-          text: "触乐",
-          style: "grid-column : 4 / 5; grid-row : 1 / 2 ",
-          add: false,
-          data: [],
-          target: "/chuapp/index/daily",
-          setting: false,
-        },
-      ],
+      card: [],
       cols: 4,
       rows: 5,
-      dialogVisible: false,
     };
   },
-  mounted() {
-    this.newAdder();
-    this.card.forEach((x) => {
-      if (x.add === false) {
-        this.getRss(x);
-      }
-    });
+  beforeMount() {
+    this.getSettings();
   },
+  mounted() {},
   setup() {
     return {};
   },
@@ -236,9 +294,9 @@ export default defineComponent({
 .container {
   display: grid;
   grid-template-columns: repeat(v-bind(cols), 23vw);
-  grid-template-rows: repeat(v-bind(rows), 260px);
+  grid-template-rows: repeat(v-bind(rows), 300px);
   grid-auto-columns: minmax(23vw, 23vw);
-  grid-auto-rows: minmax(300px, 320px);
+  grid-auto-rows: minmax(300px, 300px);
   grid-gap: 1vw;
 }
 
